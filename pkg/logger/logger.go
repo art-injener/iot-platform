@@ -1,102 +1,157 @@
 package logger
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 )
 
-// Interface -.
-type Interface interface {
-	Debug(message interface{}, args ...interface{})
-	Info(message string, args ...interface{})
-	Warn(message string, args ...interface{})
-	Error(message interface{}, args ...interface{})
-	Fatal(message interface{}, args ...interface{})
-}
-
-// Logger -.
 type Logger struct {
 	logger *zerolog.Logger
 }
 
-var _ Interface = (*Logger)(nil)
-
-// New -.
-func New(level string) *Logger {
-	var l zerolog.Level
-
-	switch strings.ToLower(level) {
-	case "error":
-		l = zerolog.ErrorLevel
-	case "warn":
-		l = zerolog.WarnLevel
-	case "info":
-		l = zerolog.InfoLevel
-	case "debug":
-		l = zerolog.DebugLevel
-	default:
-		l = zerolog.InfoLevel
+func New(isDebug bool) *Logger {
+	logLevel := zerolog.InfoLevel
+	if isDebug {
+		logLevel = zerolog.DebugLevel
 	}
 
-	zerolog.SetGlobalLevel(l)
+	zerolog.SetGlobalLevel(logLevel)
+	logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 
-	skipFrameCount := 3
-	logger := zerolog.New(os.Stdout).With().Timestamp().CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).Logger()
-
-	return &Logger{
-		logger: &logger,
-	}
+	return &Logger{logger: &logger}
 }
 
-// Debug -.
-func (l *Logger) Debug(message interface{}, args ...interface{}) {
-	l.msg("debug", message, args...)
-}
-
-// Info -.
-func (l *Logger) Info(message string, args ...interface{}) {
-	l.log(message, args...)
-}
-
-// Warn -.
-func (l *Logger) Warn(message string, args ...interface{}) {
-	l.log(message, args...)
-}
-
-// Error -.
-func (l *Logger) Error(message interface{}, args ...interface{}) {
-	if l.logger.GetLevel() == zerolog.DebugLevel {
-		l.Debug(message, args...)
+func NewConsole(isDebug bool) *Logger {
+	logLevel := zerolog.InfoLevel
+	if isDebug {
+		logLevel = zerolog.DebugLevel
 	}
 
-	l.msg("error", message, args...)
-}
+	zerolog.SetGlobalLevel(logLevel)
 
-// Fatal -.
-func (l *Logger) Fatal(message interface{}, args ...interface{}) {
-	l.msg("fatal", message, args...)
-
-	os.Exit(1)
-}
-
-func (l *Logger) log(message string, args ...interface{}) {
-	if len(args) == 0 {
-		l.logger.Info().Msg(message)
-	} else {
-		l.logger.Info().Msgf(message, args...)
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 	}
+	output.FormatMessage = func(i interface{}) string {
+		return fmt.Sprintf(" %s ", i)
+	}
+	output.FormatFieldName = func(i interface{}) string {
+		return fmt.Sprintf("%s:", i)
+	}
+	output.FormatFieldValue = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("%s", i))
+	}
+
+	logger := zerolog.New(output).With().Timestamp().Logger()
+
+	return &Logger{logger: &logger}
 }
 
-func (l *Logger) msg(level string, message interface{}, args ...interface{}) {
-	switch msg := message.(type) {
-	case error:
-		l.log(msg.Error(), args...)
-	case string:
-		l.log(msg, args...)
-	default:
-		l.log(fmt.Sprintf("%s message %v has unknown type %v", level, message, msg), args...)
-	}
+// Output duplicates the global logger and sets w as its output.
+func (l *Logger) Output(w io.Writer) zerolog.Logger {
+	return l.logger.Output(w)
+}
+
+// With creates a child logger with the field added to its context.
+func (l *Logger) With() zerolog.Context {
+	return l.logger.With()
+}
+
+// Level creates a child logger with the minimum accepted level set to level.
+func (l *Logger) Level(level zerolog.Level) zerolog.Logger {
+	return l.logger.Level(level)
+}
+
+// Sample returns a logger with the s sampler.
+func (l *Logger) Sample(s zerolog.Sampler) zerolog.Logger {
+	return l.logger.Sample(s)
+}
+
+// Hook returns a logger with the h Hook.
+func (l *Logger) Hook(h zerolog.Hook) zerolog.Logger {
+	return l.logger.Hook(h)
+}
+
+// Debug starts a new message with debug level.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Debug() *zerolog.Event {
+	return l.logger.Debug()
+}
+
+// Info starts a new message with info level.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Info() *zerolog.Event {
+	return l.logger.Info()
+}
+
+// Warn starts a new message with warn level.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Warn() *zerolog.Event {
+	return l.logger.Warn()
+}
+
+// Error starts a new message with error level.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Error() *zerolog.Event {
+	return l.logger.Error()
+}
+
+// Fatal starts a new message with fatal level. The os.Exit(1) function
+// is called by the Msg method.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Fatal() *zerolog.Event {
+	return l.logger.Fatal()
+}
+
+// Panic starts a new message with panic level. The message is also sent
+// to the panic function.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Panic() *zerolog.Event {
+	return l.logger.Panic()
+}
+
+// WithLevel starts a new message with level.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) WithLevel(level zerolog.Level) *zerolog.Event {
+	return l.logger.WithLevel(level)
+}
+
+// Log starts a new message with no level. Setting zerolog.GlobalLevel to
+// zerolog.Disabled will still disable events produced by this method.
+//
+// You must call Msg on the returned event in order to send the event.
+func (l *Logger) Log() *zerolog.Event {
+	return l.logger.Log()
+}
+
+// Print sends a log event using debug level and no extra field.
+// Arguments are handled in the manner of fmt.Print.
+func (l *Logger) Print(v ...interface{}) {
+	l.logger.Print(v...)
+}
+
+// Printf sends a log event using debug level and no extra field.
+// Arguments are handled in the manner of fmt.Printf.
+func (l *Logger) Printf(format string, v ...interface{}) {
+	l.logger.Printf(format, v...)
+}
+
+// Ctx returns the Logger associated with the ctx. If no logger
+// is associated, a disabled logger is returned.
+func (l *Logger) Ctx(ctx context.Context) *Logger {
+	return &Logger{logger: zerolog.Ctx(ctx)}
 }

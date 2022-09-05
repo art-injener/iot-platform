@@ -69,7 +69,6 @@ linters:
     - exportloopref
     - forbidigo
     - funlen
-    - gci
     - gochecknoglobals
     - gochecknoinits
     - gocognit
@@ -80,7 +79,6 @@ linters:
     - godox
     - goerr113
     - gofmt
-    - gofumpt
     - goimports
     - gomnd
     - gomodguard
@@ -111,10 +109,10 @@ linters:
     - unparam
     - unused
     - varcheck
-    - wsl
     - whitespace
 
-# disable:
+#  disable:
+#    - wsl
 #    - exhaustivestruct
 #    - ifshort
 #    - goheader

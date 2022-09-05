@@ -1,0 +1,308 @@
+<!--header.html-->
+
+<!doctype html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+          integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+          crossorigin=""/>
+    <style type="text/css">
+        html {
+            height: 100%
+        }
+
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0
+        }
+
+        .beacon-icon {
+            padding: 0px;
+            margin: 0px;
+            transform: scale(2, 2);
+        }
+
+        #map_canvas {
+            height: 100%
+        }
+
+        #info {
+            position: absolute;
+            width: 20%;
+            height: 100%;
+            bottom: 0px;
+            right: 0px;
+            top: 0px;
+            background-color: white;
+            border-left: 1px #666 solid;
+            font-family: Helvetica;
+        }
+
+        #info div {
+            padding: 10px;
+            padding-left: 10px;
+            margin: 10px;
+        }
+
+        #info div h1 {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        #info div p {
+            font-size: 14px;
+            color: #333;
+        }
+
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+            integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+            crossorigin=""></script>
+    <script type="text/javascript">
+
+        $(document).ready(function() {
+            $("#listBeaconDiv").hide();
+            $("#randomListBeaconDiv").show();
+
+            let polyline;
+
+            $(function () {
+                $("#modeCreate").change(function () {
+                    if ($(this).val() == "listBeacon") {
+                        $("#listBeaconDiv").show();
+                        $("#randomListBeaconDiv").hide();
+                    } else {
+                        $("#listBeaconDiv").hide();
+                        $("#randomListBeaconDiv").show();
+                    }
+                });
+
+                $("#loadRoute").click(
+                    function(){
+                        var toSendJSON = {}
+                        toSendJSON["routeName"] = $("#route").val();
+
+                        $.ajax({
+                            type: "POST",
+                            contentType: "application/json",
+                            url: '/loadTrackData',
+                            data: JSON.stringify(toSendJSON),
+                            dataType: 'json',
+                            cache: false,
+                            timeout: 600000,
+
+                            success: function(data) {
+                                if (polyline) {
+                                    Map.removeLayer(polyline);
+                                }
+
+                                var pointList = new Array()
+                                for (let i = 0; i < data.length-1; i++) {
+                                    var pointA = new L.LatLng(data[i].latitude, data[i].longitude);
+                                    var pointB = new L.LatLng(data[i+1].latitude, data[i+1].longitude);
+                                    pointList.push( [pointA, pointB]);
+                                }
+
+                                polyline = new L.polyline(pointList, {color: 'red'});
+                                Map.addLayer(polyline);
+                                Map.fitBounds(polyline.getBounds());
+
+                            },
+                            error: function(e) {
+                                alert("error load data of route")
+                            }
+                        });
+
+                        return false;
+                    }
+                );
+
+                $("#createBeacons").click(
+                        function(){
+                            var toSendJSON = {}
+                            toSendJSON["basePhone"] = $("#basePhone").val();
+                            toSendJSON["countBeacons"] =  parseInt( $("#countBeacons").val());
+
+                            //console.log(JSON.stringify(toSendJSON))
+                            //console.log(toSendJSON)
+                            $.ajax({
+                                type: "POST",
+                                contentType: "application/json",
+                                url: '/createBeacons',
+                                data: JSON.stringify(toSendJSON),
+                                dataType: 'json',
+                                cache: false,
+                                timeout: 600000,
+
+                                success: function(data) {
+                                    console.log("create beacons")
+                                    alert("Устройства созданы. Выйдут на связь в течении 2-5 минут")
+                                },
+                                error: function(e) {
+                                    alert("error create beacons")
+                                }
+                            });
+
+                            return false;
+                        }
+                    );
+            });
+
+
+
+        });
+
+        Map = null;
+        CenterLat = 45.0;
+        CenterLon = 9.0;
+        Beacons = {};
+        NumBeacons = 0;
+        Selected = null
+
+        function getIconForBeacon(beacon) {
+            let r = 255, g = 255, b = 0;
+            let maxalt = 40000; /* Max altitude in the average case */
+            let invalt = maxalt - beacon.altitude;
+            const selected = (Selected == beacon.beaconID);
+
+            if (invalt < 0) invalt = 0;
+            b = parseInt(255 / maxalt * invalt);
+
+            /* As Icon we use the emulator emoji, this is a simple solution but
+               is definitely a compromise: we expect the icon to be rotated
+               45 degrees facing north-east by default, this is true in most
+               systems but not all. */
+            var he = document.createElement("P");
+            he.innerHTML = '>';
+            var rotation = 45 + 360 - beacon.track;
+            var selhtml = '';
+
+            /* Give a border to the selected emulator. */
+            if (Selected == beacon.beaconID) {
+                selhtml = 'border:1px dotted #0000aa; border-radius:10px;';
+            } else {
+                selhtml = '';
+            }
+            he = '<div style="transform: rotate(-' + rotation + 'deg);  ' + selhtml + '">✈️</div>';
+            var icon = L.divIcon({html: he, className: 'beacon-icon'});
+            return icon;
+        }
+
+        function selectBeacon(beaconID) {
+            if (!Beacons[beaconID]) return;
+            Selected = beaconID;
+            refreshSelectedInfo();
+        }
+
+        /* Return a closure to caputure the 'beaconID' argument. This way we don't
+           have to care about how Leaflet passes the object to the callback. */
+        function selectBeaconCallback(beaconID) {
+            return function () {
+                return selectBeacon(beaconID);
+            }
+        }
+
+        function refreshGeneralInfo() {
+            var i = document.getElementById('geninfo');
+
+            i.innerHTML = NumBeacons + ' устройст(в/во) на карте';
+        }
+
+        function refreshSelectedInfo() {
+            var i = document.getElementById('selinfo');
+            var p = Beacons[Selected];
+
+            if (!p) return;
+            var html = '<b>Выбран</b> : <br>';
+                html += 'ID: ' + p.beaconID + '<br>';
+            html += 'Координаты: ' + p.lat + ', ' + p.lon + '<br>';
+            html += 'Скорость: ' + p.speed + ' км/ч<br>';
+            html += 'Азимут: ' + p.azim + '&deg; <br>';
+            html += '<b>Следующий сеанс: ' + p.seanceTime + '</b><br>';
+
+            i.innerHTML = html;
+        }
+
+        function fetchData() {
+            $.getJSON('/data.json', function (data) {
+                var stillhere = {}
+                for (var j = 0; j < data.length; j++) {
+                    var beacon = data[j];
+                    var marker = null;
+                    stillhere[beacon.beaconID] = true;
+
+                    if (Beacons[beacon.beaconID]) {
+                        var tempBeacon = Beacons[beacon.beaconID];
+                        marker = tempBeacon.marker;
+                        marker.setLatLng([beacon.lat, beacon.lon]);
+                        tempBeacon.speed = beacon.speed;
+                        tempBeacon.lat = beacon.lat;
+                        tempBeacon.lon = beacon.lon;
+                        tempBeacon.azim = beacon.azim;
+                        tempBeacon.seanceTime = beacon.seanceTime;
+
+                        if (tempBeacon.beaconID == Selected)
+                            refreshSelectedInfo();
+                    } else {
+                        var marker = L.marker([beacon.lat, beacon.lon]).addTo(Map);
+                        marker.on('click', selectBeaconCallback(beacon.beaconID));
+                        beacon.marker = marker;
+                        marker.beaconID = beacon.beaconID;
+                        Beacons[beacon.beaconID] = beacon;
+                    }
+                }
+                NumBeacons = data.length;
+                //console.log(data)
+                for (var p in Beacons) {
+                    if (!stillhere[p]) {
+                        Map.removeLayer(Beacons[p].marker);
+                        delete Beacons[p];
+                    }
+                }
+            });
+        }
+
+        function fetchRegion() {
+            $.getJSON('/region.json', function (data) {
+                var stillhere = {}
+                for (var j = 0; j < data.length; j++) {
+                    var region = data[j];
+                    // L.marker([region.lat,region.lon]).addTo(Map).bindPopup(region.regionID)
+                    //     .openPopup();;
+                    L.circle([region.lat,region.lon], region.radius*1000).addTo(Map);
+
+                }
+                //console.log(data)
+
+            });
+        }
+
+
+        function initialize() {
+            Map = L.map('map_canvas').setView([47.29, 39.73], 8);
+
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+                maxZoom: 18,
+                id: 'mapbox/streets-v11',
+                accessToken: 'your.mapbox.access.token'
+            }).addTo(Map);
+
+            fetchRegion()
+
+            /* Setup our timer to poll from the server. */
+            window.setInterval(function () {
+                fetchData();
+                refreshGeneralInfo();
+            }, 5000);
+        }
+
+    </script>
+</head>

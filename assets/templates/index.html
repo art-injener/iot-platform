@@ -1,0 +1,87 @@
+<!--index.html-->
+
+<!--Embed the header.html template at this location-->
+{{ template "header.html" .}}
+<body onload="initialize()">
+<div id="map_canvas" style="width:80%; height:100%"></div>
+<div id="info">
+<!--    <div>-->
+<!--        <h1>Маршрут</h1>-->
+<!--        <form id="loadRouteForm" method="post">-->
+<!--            <p>-->
+<!--                <label> Выберите маршрут</label>-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <select id="route">-->
+<!--                    <option value="Route1">Маршрут №1</option>-->
+<!--                    <option value="Route2">Маршрут №2</option>-->
+<!--                    <option value="Route3">Маршрут №3</option>-->
+<!--                </select>-->
+<!--            </p>-->
+<!--            <input id="loadRoute" type="submit" value="Загрузить">-->
+<!--        </form>-->
+<!--    </div>-->
+
+<!--    <div>-->
+<!--        <label> Создать маяки </label>-->
+<!--        <select id="modeCreate">-->
+<!--            <option value="listBeacon">Задать список</option>-->
+<!--            <option value="randomListBeacon" selected>Сгенерировать</option>-->
+<!--        </select>-->
+<!--    </div>-->
+
+
+
+<!--    <div id="listBeaconDiv">-->
+<!--        <form action="textarea1.php" method="post">-->
+<!--            <p><b>Задайте список номеров через запятую:</b></p>-->
+<!--            <p><textarea rows="10" cols="100" name="text"></textarea></p>-->
+<!--            <p><input type="submit" value="Отправить"></p>-->
+<!--        </form>-->
+<!--    </div>-->
+<!--    <div id="randomListBeaconDiv" >-->
+<!--        <h1>Маяки</h1>-->
+<!--        <form id="createBeaconsForm" method="post">-->
+<!--            <p>-->
+<!--                <label>Базовый номер в формате: 79001234567</label>-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <input id="basePhone" type="tel" id="phone" name="phone"-->
+<!--                       pattern="[7-8]{1}[0-9]{3}[0-9]{3}[0-9]{2}[0-9]{2}" required>-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <label>Количество маяков для имитации</label>-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <input id="countBeacons" type="number" min="1" max="200000" value="10" required>-->
+<!--            </p>-->
+
+<!--            <p>-->
+<!--                <input id="createBeacons" type="submit" value="Cоздать">-->
+<!--            </p>-->
+<!--        </form>-->
+<!--    </div>-->
+
+<!--    <div id="systemControl" >-->
+<!--        <h1>Управление</h1>-->
+<!--        <form id="settingsBeaconsForm" method="post">-->
+<!--            <p>-->
+<!--                <label>Скорость воспроизведения</label>-->
+<!--                <input id="playScale" type="number" min="1" max="100"  value="1" required>-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <input type="checkbox" id="sendGPS"  value=true checked> Отправлять GPS метки-->
+<!--            </p>-->
+<!--            <p>-->
+<!--                <input id="setSettings" type="submit" value="Установить">-->
+<!--            </p>-->
+<!--        </form>-->
+<!--    </div>-->
+
+    <div>
+        <h1>Информация</h1>
+        <p id="geninfo"></p>
+        <p id="selinfo">Выберите маяк на карте.</p>
+    </div>
+</div>
+{{ template "footer.html" .}}
