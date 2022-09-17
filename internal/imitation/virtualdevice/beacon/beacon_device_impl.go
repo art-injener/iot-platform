@@ -14,7 +14,7 @@ import (
 	"github.com/art-injener/iot-platform/internal/models/imitator"
 	"github.com/art-injener/iot-platform/pkg/logger"
 	"github.com/art-injener/iot-platform/pkg/models/device"
-	util "github.com/art-injener/iot-platform/util/helper"
+	"github.com/art-injener/iot-platform/util"
 )
 
 const MaxPacketSize = 1 * 1024
@@ -26,9 +26,9 @@ type VirtualBeaconImpl struct {
 }
 
 func NewVirtualBeacon(deviceID string, launch, wakeUpInterval int, log *logger.Logger) *VirtualBeaconImpl {
-	seance := time.Now().Add(time.Duration(rand.Intn(launch)) * time.Minute)
-	seance = seance.Add(time.Duration(rand.Intn(60)) * time.Second)
-	seance = seance.Add(time.Duration(rand.Intn(1000)) * time.Millisecond)
+	seance := time.Now().Add(time.Duration(rand.Intn(launch)) * time.Minute) //nolint:gosec
+	seance = seance.Add(time.Duration(rand.Intn(60)) * time.Second)          //nolint:gosec
+	seance = seance.Add(time.Duration(rand.Intn(1000)) * time.Millisecond)   //nolint:gosec
 
 	return &VirtualBeaconImpl{
 		DevParam:   params.NewParameters(deviceID, wakeUpInterval),
@@ -53,12 +53,12 @@ func (v *VirtualBeaconImpl) GetSeanceTime() time.Time {
 // Первоначально выполняется упаковка параметров устройства
 // затем отправка и чтение ответа.
 func (v *VirtualBeaconImpl) Send(conn net.Conn) (bool, error) { // выполняем сериализация параметров устройства
+
 	str, _, err := v.Serialize()
 	if err != nil {
 		return false, errors.Wrap(err, "error serialize data for send in Send()")
 	}
 
-	// TODO: добавить проверку isConnected()
 	// отправка пакета данных на сервер
 	_, err = conn.Write([]byte(str))
 	if err != nil {
@@ -68,42 +68,11 @@ func (v *VirtualBeaconImpl) Send(conn net.Conn) (bool, error) { // выполн�
 		v.log.Debug().Msgf("Send device data: \n\t%s\t", str)
 	}
 
-	////// читаем ответ от сервака
-	//buf := make([]byte, MaxPacketSize)
-	//rb, err := conn.Read(buf)
-	//if err != nil {
-	//	return false, errors.Wrap(err, "error read data from network in Send()")
-	//}
-	//if v.log != nil {
-	//	v.log.Debug().Msgf("Get response : \t%s\t", string(buf[:rb]))
-	//}
-	//
-	//if v.DevParam.ConstParam.WUI == 0 {
-	//	v.DevParam.ConstParam.WUI = 1
-	//}
-	//
-	//v.seanceTime = v.seanceTime.Add(time.Duration(v.DevParam.ConstParam.WUI) * time.Minute)
-	//v.DevParam.MutableParam.SeanceTime = v.seanceTime.UTC().Unix()
-	//
-	//isSend, err := v.checkResponseOnSuccessState(string(buf[:rb]), crc)
-	//if err != nil {
-	//	return false, errors.Wrap(err, "error in validation server response")
-	//}
-	//
-	//if isSend {
-	//	if err = v.wakeUpIntervalParser(string(buf[:rb])); err != nil {
-	//		return false, err
-	//	}
-	//	if err = v.satelliteSearchTimeParser(string(buf[:rb])); err != nil {
-	//		return false, err
-	//	}
-	//}
-	//buf = nil
-
 	return true, nil
 }
 
 func (v *VirtualBeaconImpl) UpdateGeoParamByExternalImitator(imitParam *imitator.GeoParamsModel) error {
+	v.seanceTime = v.seanceTime.Add(time.Duration(v.DevParam.ConstParam.WUI) * time.Minute)
 	return v.DevParam.UpdateGeoParamByExternalImitator(imitParam)
 }
 

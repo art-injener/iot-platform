@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/art-injener/iot-platform/pkg/models/device"
-	util "github.com/art-injener/iot-platform/util/helper"
+	"github.com/art-injener/iot-platform/util"
 )
 
 type DeviceMessageModel struct {
@@ -57,6 +57,7 @@ func (d *DeviceMessageModel) idParser(data string) error {
 		return nil
 	}
 	d.DevSettings.ID = value
+	d.DevParameters.ID = value
 	return nil
 }
 

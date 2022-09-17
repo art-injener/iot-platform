@@ -7,10 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/art-injener/iot-platform/internal/config"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 
-	"github.com/art-injener/iot-platform/internal/config"
 	"github.com/art-injener/iot-platform/internal/imitation"
 )
 
@@ -53,6 +54,15 @@ func (a *WebApp) Run(finish chan struct{}) error {
 		)
 	})
 
+	// новый маршрут
+	router.GET("/new", func(c *gin.Context) {
+		c.HTML(
+			http.StatusOK,
+			"client_app.html",
+			gin.H{},
+		)
+	})
+
 	// получение данных о маяках
 	router.GET("/data.json", func(c *gin.Context) {
 		type beaconInfo struct {
@@ -66,6 +76,7 @@ func (a *WebApp) Run(finish chan struct{}) error {
 
 		if a.imitator == nil {
 			c.JSON(http.StatusOK, []*beaconInfo{})
+
 			return
 		}
 
@@ -83,6 +94,7 @@ func (a *WebApp) Run(finish chan struct{}) error {
 				})
 			}
 		}
+
 		c.JSON(http.StatusOK, dots)
 	})
 
@@ -97,6 +109,7 @@ func (a *WebApp) Run(finish chan struct{}) error {
 
 		if a.imitator == nil {
 			c.JSON(http.StatusOK, []*regionInfo{})
+
 			return
 		}
 

@@ -8,7 +8,7 @@ import (
 	geo "github.com/kellydunn/golang-geo"
 
 	"github.com/art-injener/iot-platform/internal/models/imitator"
-	util "github.com/art-injener/iot-platform/util/helper"
+	"github.com/art-injener/iot-platform/util"
 )
 
 type TypeImitTrack uint8
@@ -89,22 +89,23 @@ func (c *Cache) Get(key uint64) (imitator.GeoParamsModel, bool) {
 		return imitator.GeoParamsModel{}, false
 	}
 
+	item.Azimuth += 0.5
+	if item.Azimuth > 360 {
+		item.Azimuth = float32(rand.Intn(360))
+	}
+
 	point := geo.NewPoint(item.LatitudeBeacon, item.LongitudeBeacon)
-	newPoint := point.PointAtDistanceAndBearing(float64(rand.Intn(10)), //nolint:gosec
+	newPoint := point.PointAtDistanceAndBearing(float64(rand.Intn(radius)), //nolint:gosec
 		float64(item.Azimuth))
 
 	if newPoint.GreatCircleDistance(&centralDot.Center) > float64(centralDot.Radius) {
 		newPoint = centralDot.Center.PointAtDistanceAndBearing(float64(rand.Intn(radius)), //nolint:gosec
-			float64(p.Azimuth))
+			float64(rand.Intn(360)))
 	}
 	item.LatitudeBeacon = newPoint.Lat()
 	item.LongitudeBeacon = newPoint.Lng()
 
 	item.AverageSpeed = rand.Intn(100)
-	item.Azimuth += 0.5
-	if item.Azimuth > 360 {
-		item.Azimuth = 0
-	}
 
 	return *item, true
 }

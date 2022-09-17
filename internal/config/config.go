@@ -1,42 +1,56 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/art-injener/iot-platform/pkg/logger"
-	util "github.com/art-injener/iot-platform/util/helper"
+	"github.com/art-injener/iot-platform/util"
 )
 
 const DebugLevel = "debug"
 
 const (
 	defaultDBScanPeriod      = 100 * time.Millisecond
-	defaultMonitoringPeriod  = "3000"
-	defaultTimeoutReadPeriod = "3000"
+	defaultMonitoringPeriod  = 3 * time.Second
+	defaultTimeoutReadPeriod = 3 * time.Second
 )
 
 type Config struct {
-	LogLevel         string
-	Mode             string
-	MonitoringPeriod time.Duration
-	LaunchDuration   int
-	WakeUpInterval   int
-	Phones           []string
-	Net              *NetworkConfig
-	DB               *DBConfig
-	Log              *logger.Logger
+	// Log level variant : debug, release
+	LogLevel string `mapstructure:"LOG_LEVEL"`
+	// Base phone number for generating devices
+	BasePhone string `mapstructure:"BASE_PHONE"`
+	// Number of devices to generate
+	CountDevices uint64 `mapstructure:"COUNT_DEVICES"`
+	// Period (in ms) of sending data to the server
+	MonitoringPeriod int64 `mapstructure:"MONITORING_PERIOD"`
+	// Time in minute launching
+	LaunchDuration int `mapstructure:"LAUNCH_DURATION"`
+	// Time in minute wakeup
+	WakeUpInterval int `mapstructure:"WAKE_UP_INTERVAL"`
+	// Web server port
+	WebServerPort string `mapstructure:"WEB_SERVER_PORT"`
+	*NetworkConfig
+	*DBConfig
+	*RabbitConfig
+	Phones []string
+	Log    *logger.Logger
 }
 
 type NetworkConfig struct {
-	Protocol      string
-	Ip            string
-	Port          uint16
-	ReadTimeoutMs time.Duration
+	// Type of network protocols, values variant : tcp, udp
+	Protocol string `mapstructure:"NETWORK_PROTOCOL"`
+	// Server IP address
+	Ip string `mapstructure:"NETWORK_IP"`
+	// Server port
+	Port uint16 `mapstructure:"NETWORK_PORT"`
+	// Timeout wait read from server
+	ReadTimeoutMs int64 `mapstructure:"NETWORK_TIMEOUT_READ"`
 }
 
 type DBConfig struct {
@@ -45,8 +59,10 @@ type DBConfig struct {
 	NameDB       string `mapstructure:"DEVICES_DB_DATABASE"`
 	User         string `mapstructure:"DEVICES_DB_USERNAME"`
 	Password     string `mapstructure:"DEVICES_DB_PASSWORD"`
-	DBScanPeriod uint64
+	ExecTimeout  int    `mapstructure:"DEVICES_DB_EXEC_TIMEOUT"`
+	DBScanPeriod uint64 `mapstructure:"DEVICES_DB_SCAN_PERIOD"`
 }
+
 type SSHConfig struct {
 	Host     string // SSH Server Hostname/IP
 	Port     uint16 // SSH Port
@@ -54,68 +70,72 @@ type SSHConfig struct {
 	Password string // Empty string for no password
 }
 
+type RabbitConfig struct {
+	Url      string `mapstructure:"RABBIT_URL"`
+	Queue    Queue
+	Qos      Qos
+	Consumer Consumer
+}
+
+type Queue struct {
+	QueueName  string `mapstructure:"RABBIT_QUEUE_NAME"`
+	Durable    bool   `mapstructure:"RABBIT_QUEUE_DURABLE"`
+	AutoDelete bool   `mapstructure:"RABBIT_QUEUE_AUTO_DELETE"`
+	Exclusive  bool   `mapstructure:"RABBIT_QUEUE_EXCLUSIVE"`
+	NoWait     bool   `mapstructure:"RABBIT_QUEUE_NO_WAIT"`
+}
+
+type Qos struct {
+	PrefetchCount int  `mapstructure:"RABBIT_QOS_PREFETCH_COUNT"`
+	PrefetchSize  int  `mapstructure:"RABBIT_QOS_PREFETCH_SIZE"`
+	Global        bool `mapstructure:"RABBIT_QOS_GLOBAL"`
+}
+
+type Consumer struct {
+	Tag       string `mapstructure:"RABBIT_CONSUMER_TAG"`
+	AutoAck   bool   `mapstructure:"RABBIT_CONSUMER_AUTO_ACK"`
+	Exclusive bool   `mapstructure:"RABBIT_CONSUMER_EXCLUSIVE"`
+	NoLocal   bool   `mapstructure:"RABBIT_CONSUMER_NO_LOCAL"`
+	NoWait    bool   `mapstructure:"RABBIT_CONSUMER_NO_WAIT"`
+}
+
 func GetConfig(path string) (*Config, error) {
 	cfg := Config{}
-	cfg.Net = &NetworkConfig{}
-	cfg.DB = &DBConfig{}
+	cfg.NetworkConfig = &NetworkConfig{}
+	cfg.DBConfig = &DBConfig{}
+	cfg.RabbitConfig = &RabbitConfig{}
 
-	// data base settings
-	var portDB uint
-	var basePhone string
-	var countDev uint
-	var period, timeout string
-	var err error
+	err := readEnvConfig(path, &cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	readEnvConfig(path, &cfg)
-
-	// основные настройки
-	flag.StringVar(&cfg.LogLevel, "loglevel", "release", "Log level variant : debug, release")
-
-	flag.StringVar(&basePhone, "startid", "89991234567", "base phone number for generating devices ")
-	flag.UintVar(&countDev, "countid", 10000, "number of devices to generate")
-	flag.IntVar(&cfg.LaunchDuration, "launch", 20, "time in minute launching ")
-	flag.IntVar(&cfg.WakeUpInterval, "wakeup", 20, "time in minute wakeup ")
-
-	// настройки подключения к серверу
-	var port uint
-	// TODO : добавить валидацию переданных данных
-	flag.StringVar(&cfg.Net.Protocol,
-		"protocol",
-		"tcp",
-		"Type of network protocols, values variant : tcp, udp")
-
-	cfg.Net.Protocol = strings.ToLower(cfg.Net.Protocol)
-	if cfg.Net.Protocol != "tcp" && cfg.Net.Protocol != "udp" {
+	cfg.NetworkConfig.Protocol = strings.ToLower(cfg.NetworkConfig.Protocol)
+	if cfg.NetworkConfig.Protocol != "tcp" && cfg.NetworkConfig.Protocol != "udp" {
 		return nil, errors.New("wrong network protocol passed")
 	}
-	flag.StringVar(&cfg.Net.Ip, "ip", "127.0.0.1", "Server IP address ")
-	flag.UintVar(&port, "port", 9000, "Server port")
-	flag.StringVar(&timeout, "timeout", defaultTimeoutReadPeriod, "timeout waite read from server")
 
-	flag.StringVar(&period, "period", defaultMonitoringPeriod, "Period (in ms) of sending data to the server ")
-
-	if cfg.MonitoringPeriod, err = time.ParseDuration(period + "ms"); err != nil {
-		cfg.MonitoringPeriod = 5 * time.Second
+	if cfg.MonitoringPeriod == 0 {
+		cfg.MonitoringPeriod = int64(defaultMonitoringPeriod)
 	}
 
-	if cfg.Net.ReadTimeoutMs, err = time.ParseDuration(timeout + "ms"); err != nil {
-		cfg.Net.ReadTimeoutMs = 3 * time.Second
+	if cfg.NetworkConfig.ReadTimeoutMs == 0 {
+		cfg.NetworkConfig.ReadTimeoutMs = int64(defaultTimeoutReadPeriod)
 	}
 
-	if cfg.DB != nil {
-		flag.Uint64Var(&cfg.DB.DBScanPeriod, "dbperiod", uint64(defaultDBScanPeriod), "database scan period")
+	if cfg.DBConfig != nil && cfg.DBConfig.DBScanPeriod == 0 {
+		cfg.DBConfig.DBScanPeriod = uint64(defaultDBScanPeriod)
 	}
 
-	flag.Parse()
-
-	if basePhone == "" {
-		return nil, errors.New("Empty ids and iddev/countdev values")
+	if cfg.BasePhone == "" || cfg.CountDevices == 0 {
+		return nil, errors.New("empty ids and iddev/countdev values")
 	}
 
-	cfg.Phones = util.GenerateIDs(basePhone, uint64(countDev))
+	cfg.Phones = util.GenerateIDs(cfg.BasePhone, cfg.CountDevices)
 
-	cfg.Net.Port = uint16(port & 0xffff)
-	cfg.DB.Port = uint16(portDB & 0xffff)
+	flag.StringVar(&cfg.LogLevel, "loglevel", "release", "Log level variant : debug, release")
+
+	flag.StringVar(&cfg.BasePhone, "startid", "89991234567", "base phone number for generating devices ")
 
 	return &cfg, nil
 }
@@ -126,15 +146,25 @@ func readEnvConfig(path string, cfg *Config) error {
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
 
-	viper.ReadInConfig()
-
-	cfgDb := DBConfig{}
-
-	if err := viper.Unmarshal(&cfgDb); err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		return err
 	}
 
-	cfg.DB = &cfgDb
+	if err := viper.Unmarshal(cfg); err != nil {
+		return err
+	}
+
+	if err := viper.Unmarshal(cfg.DBConfig); err != nil {
+		return err
+	}
+
+	if err := viper.Unmarshal(cfg.NetworkConfig); err != nil {
+		return err
+	}
+
+	if err := viper.Unmarshal(cfg.RabbitConfig); err != nil {
+		return err
+	}
 
 	return nil
 }

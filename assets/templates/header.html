@@ -219,9 +219,11 @@
             var p = Beacons[Selected];
 
             if (!p) return;
-            var html = '<b>Выбран</b> : <br>';
-                html += 'ID: ' + p.beaconID + '<br>';
-            html += 'Координаты: ' + p.lat + ', ' + p.lon + '<br>';
+            var html = '<b>Выбран</b>: <br>';
+            html += 'ID: ' + p.beaconID + '<br>';
+            html += 'Дата создания: ' + p.createdAt + '<br>';
+            html += 'Широта: ' + p.lat + '<br>';
+            html += 'Долгота: ' + p.lon + '<br>';
             html += 'Скорость: ' + p.speed + ' км/ч<br>';
             html += 'Азимут: ' + p.azim + '&deg; <br>';
             html += '<b>Следующий сеанс: ' + p.seanceTime + '</b><br>';

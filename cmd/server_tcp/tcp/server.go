@@ -3,15 +3,17 @@ package tcp
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
 
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 
 	"github.com/art-injener/iot-platform/pkg/models/rmq"
 )
+
+var ErrAcceptConn = errors.New("could not accept connection")
 
 // ServerTCP - реализация
 type ServerTCP struct {
@@ -51,19 +53,20 @@ func (t *ServerTCP) Run() (err error) {
 	return t.waitNewConnections()
 }
 
-// Закрытие сервера
+// Close - Закрытие сервера
 func (t *ServerTCP) Close() (err error) {
 	defer t.rmq.Close()
+
 	return t.server.Close()
 }
 
-// функция ожидания новых подключений.
+// waitNewConnections - функция ожидания новых подключений.
 // Операция блокирующая. Сервер в бесконечном цикле ждёт новых подключений
-func (t *ServerTCP) waitNewConnections() (err error) {
+func (t *ServerTCP) waitNewConnections() error {
 	for {
 		conn, err := t.server.Accept()
 		if err != nil || conn == nil {
-			err = errors.New("could not accept connection")
+
 			return err
 		}
 		// обработчик каждого нового подключения запускается в новой горутине

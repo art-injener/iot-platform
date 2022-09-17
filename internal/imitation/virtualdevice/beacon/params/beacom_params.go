@@ -62,7 +62,7 @@ func (p *Parameters) UpdateGeoParamByExternalImitator(imitParam *imitator.GeoPar
 
 func (p *Parameters) GetDeviceInfo() device.ParamsModel {
 	v := *p.MutableParam
-	v.SeanceTime += int64((time.Duration(p.ConstParam.WUI) * time.Minute).Seconds())
+	v.SeanceTime = int64((time.Duration(p.ConstParam.WUI) * time.Minute).Seconds())
 
 	return v
 }

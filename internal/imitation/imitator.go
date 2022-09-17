@@ -9,15 +9,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/art-injener/iot-platform/internal/config"
+
 	"github.com/pkg/errors"
 
-	"github.com/art-injener/iot-platform/internal/config"
 	"github.com/art-injener/iot-platform/internal/imitation/trackcache"
 	"github.com/art-injener/iot-platform/internal/imitation/virtualdevice"
 	"github.com/art-injener/iot-platform/internal/imitation/virtualdevice/beacon"
 	"github.com/art-injener/iot-platform/pkg/logger"
 	"github.com/art-injener/iot-platform/pkg/models/device"
-	util "github.com/art-injener/iot-platform/util/helper"
+	"github.com/art-injener/iot-platform/util"
 )
 
 const geoDataFilePath = "assets/data/geoData.json"
@@ -33,19 +34,18 @@ type Imitator struct {
 
 // NewImitator - конструктор имитатора
 func NewImitator(log *logger.Logger) (*Imitator, error) {
-
-	var poligons map[uint16]util.GeoPolygon
+	var polygons map[uint16]util.GeoPolygon
 	var err error
 
 	log.Info().Msg("[IMITATOR]::load geozone from file")
-	if poligons, err = loadPolygonsFromFile(geoDataFilePath); err != nil {
+	if polygons, err = loadPolygonsFromFile(geoDataFilePath); err != nil {
 		return nil, err
 	}
 
 	return &Imitator{
 		log:        log,
 		devices:    nil,
-		TrackCache: trackcache.NewCache(poligons),
+		TrackCache: trackcache.NewCache(polygons),
 	}, nil
 }
 
@@ -65,9 +65,7 @@ func (s *Imitator) CreateVirtualDevices(cfg *config.Config, deviceIDs []string) 
 	if s.log != nil {
 		s.log.Info().Msgf("%d devices were created for imitation", len(s.devices))
 	}
-	s.netConfig = cfg.Net
-
-	return
+	s.netConfig = cfg.NetworkConfig
 }
 
 // NewVirtualDevice - конструктор виртуального устройства
@@ -97,9 +95,7 @@ func (s *Imitator) StartImitation(finish chan struct{}, abort chan struct{}) err
 		defer wg.Done()
 		N := len(s.devices)
 		var waitGroup sync.WaitGroup
-		//ticker := time.NewTicker(1 * time.Second)
 		s.DeviceInfo = make([]device.ParamsModel, len(s.devices))
-		//TODO: переделать!!!!!!
 		for {
 			select {
 			case <-finish:
@@ -115,8 +111,10 @@ func (s *Imitator) StartImitation(finish chan struct{}, abort chan struct{}) err
 						s.mu.Lock()
 						s.DeviceInfo[i] = device.ParamsModel{}
 						s.mu.Unlock()
+
 						continue
 					}
+
 					key, err := strconv.ParseUint(s.devices[i].GetID(), 10, 64)
 					if err != nil {
 						continue
@@ -161,7 +159,6 @@ func (s *Imitator) StartImitation(finish chan struct{}, abort chan struct{}) err
 							s.log.Error().Msgf("Can't connect to %s:%d. %s", s.netConfig.Ip, s.netConfig.Port, err.Error())
 						}
 					}(s.devices[i], &waitGroup)
-
 				}
 				waitGroup.Wait()
 				s.log.Info().Msgf("Total device count %d, to update %d", len(s.devices), counter)
@@ -170,6 +167,7 @@ func (s *Imitator) StartImitation(finish chan struct{}, abort chan struct{}) err
 		}
 	}(finish, &wg)
 	wg.Wait()
+
 	return nil
 }
 

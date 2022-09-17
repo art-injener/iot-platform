@@ -8,59 +8,35 @@ export
 help: ## Display this help screen
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-compose-up: ### Run docker-compose
-	docker-compose up --build -d postgres rabbitmq && docker-compose logs -f
-.PHONY: compose-up
+.PHONY: build_emulator
+build_emulator:
+	go build -o ./bin/emulator ./cmd/emulator/main.go
 
-compose-up-integration-test: ### Run docker-compose with integration test
-	docker-compose up --build --abort-on-container-exit --exit-code-from integration
-.PHONY: compose-up-integration-test
+.PHONY: run_emulator
+run_emulator:
+	./bin/emulator
 
-compose-down: ### Down docker-compose
-	docker-compose down --remove-orphans
-.PHONY: compose-down
 
-swag-v1: ### swag init
-	swag init -g internal/controller/http/v1/router.go
-.PHONY: swag-v1
+.PHONY: build_server
+build_server:
+	go build -o ./bin/server ./cmd/server_tcp/main.go
 
-run: swag-v1 ### swag run
-	go mod tidy && go mod download && \
-	DISABLE_SWAGGER_HTTP_HANDLER='' GIN_MODE=debug CGO_ENABLED=0 go run -tags migrate ./cmd/app
-.PHONY: run
+.PHONY: run_server
+run_server:
+	./bin/server
 
-docker-rm-volume: ### remove docker volume
-	docker volume rm go-clean-template_pg-data
-.PHONY: docker-rm-volume
+.PHONY: build_rmq
+build_rmq:
+	go build -o ./bin/proc_rmq ./cmd/processor_rmq/main.go
 
-linter-golangci: ### check by golangci linter
-	golangci-lint run
-.PHONY: linter-golangci
+.PHONY: run_rmq
+run_rmq:
+	./bin/proc_rmq
 
-linter-hadolint: ### check by hadolint linter
-	git ls-files --exclude='Dockerfile*' --ignored | xargs hadolint
-.PHONY: linter-hadolint
+.PHONY: build_api
+build_api:
+	go build -o ./bin/api ./cmd/server_api/main.go
 
-linter-dotenv: ### check by dotenv linter
-	dotenv-linter
-.PHONY: linter-dotenv
-
-test: ### run test
-	go test -v -cover -race ./internal/...
-.PHONY: test
-
-integration-test: ### run integration-test
-	go clean -testcache && go test -v ./integration-test/...
-.PHONY: integration-test
-
-mock: ### run mockery
-	mockery --all -r --case snake
-.PHONY: mock
-
-migrate-create:  ### create new migration
-	migrate create -ext sql -dir migrations 'migrate_name'
-.PHONY: migrate-create
-
-migrate-up: ### migration up
-	migrate -path migrations -database '$(PG_URL)?sslmode=disable' up
-.PHONY: migrate-up
+.PHONY: run_api
+run_api:
+	./bin/api

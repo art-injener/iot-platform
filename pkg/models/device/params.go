@@ -15,20 +15,22 @@ const (
 )
 
 type ParamsModel struct {
-	ID              string  `json:"id"`
-	SystemTime      int64   `json:"system_time"`      // Местное время - параметр STIME
-	BalanceSim      float32 `json:"balance_sim"`      // баланс - параметр BAL
-	Temperature     float32 `json:"temperature"`      // температура  - параметр TE
-	BatteryCharge   float32 `json:"battery_charge"`   // состояние батареи - параметр  VB=100%(5.95V)
-	IntervalCounter uint64  `json:"interval_counter"` // номер интервального извещения - параметр IC. Увеличить на 1 при каждой успешной передаче.
-	Latitude        float64 `json:"latitude"`         // широта, параметр LA
-	LAD             string  `json:"lad"`              // полушарие, параметр LAD
-	Longitude       float64 `json:"longitude"`        // долгота, параметр LO
-	LOD             string  `json:"lod"`              // полушарие - параметр LOD
-	SignalQuality   int     `json:"signal_quality"`   // параметр мощность сигнала
-	Speed           int     `json:"speed"`            // параметр Speed=0 - скорость движения
-	DirectionMove   float32 `json:"direction_move"`   // параметр DirectionMove - направление движения
-	SeanceTime      int64   `json:"seance_time"`      // время следующего выхода на связь
+	ID              string    `json:"id"`
+	SystemTime      int64     `json:"system_time"`      // Местное время - параметр STIME
+	BalanceSim      float32   `json:"balance_sim"`      // баланс - параметр BAL
+	Temperature     float32   `json:"temperature"`      // температура  - параметр TE
+	BatteryCharge   float32   `json:"battery_charge"`   // состояние батареи - параметр  VB=100%(5.95V)
+	IntervalCounter uint64    `json:"interval_counter"` // номер интервального извещения - параметр IC. Увеличить на 1 при каждой успешной передаче.
+	Latitude        float64   `json:"latitude"`         // широта, параметр LA
+	LAD             string    `json:"lad"`              // полушарие, параметр LAD
+	Longitude       float64   `json:"longitude"`        // долгота, параметр LO
+	LOD             string    `json:"lod"`              // полушарие - параметр LOD
+	SignalQuality   int       `json:"signal_quality"`   // параметр мощность сигнала
+	Speed           int       `json:"speed"`            // параметр Speed=0 - скорость движения
+	DirectionMove   float32   `json:"direction_move"`   // параметр DirectionMove - направление движения
+	SeanceTime      int64     `json:"seance_time"`      // время следующего выхода на связь
+	CreatedAt       time.Time `json:"-"`
+	UpdatedAt       time.Time `json:"-"`
 }
 
 // NewDeviceParams - конструктор изменяемых параметров
