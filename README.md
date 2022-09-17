@@ -37,6 +37,5 @@ MVP курсового проекта по курсу "Архитектура в
 - Выполняем запуск приложений командами `make run_emulator`,`make run_server`,`make run_rmq`,`make run_api` 
 - Открываем браузер по адресу `localhost:8082` и наслаждаемся картинкой движения маяков.
 
-![image info](./doc/screenshot.png)
-
 ![alt text](./doc/beacon.gif)
+
